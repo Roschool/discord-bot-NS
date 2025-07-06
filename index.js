@@ -190,51 +190,6 @@ const server = http.createServer((req, res) => {
   }
 });
 
-// Bot invite link genereren
-const inviteLink = `https://discord.com/oauth2/authorize?client_id=1391367723589570731&permissions=2048&scope=bot%20applications.commands`;
-
-app.get('/', (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <title>Invite de Bot</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            background: #2c2f33;
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            flex-direction: column;
-          }
-          a.button {
-            background-color: #7289da;
-            color: white;
-            padding: 15px 30px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 20px;
-            font-weight: bold;
-            transition: background-color 0.3s ease;
-          }
-          a.button:hover {
-            background-color: #5b6eae;
-          }
-        </style>
-      </head>
-      <body>
-        <h1>Welkom bij mijn Discord Bot</h1>
-        <p>Klik op de knop hieronder om de bot toe te voegen aan je server:</p>
-        <a class="button" href="${inviteLink}" target="_blank" rel="noopener noreferrer">Invite de Bot</a>
-      </body>
-    </html>
-  `);
-});
-
-
 server.listen(PORT, () => {
   console.log(`🌐 Server luistert op poort ${PORT}`);
 });
