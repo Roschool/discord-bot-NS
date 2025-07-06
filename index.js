@@ -10,17 +10,24 @@ const client = new Client({
 
 const PORT = process.env.PORT || 3000;
 const mapFile = './channelMap.json';
-const channelMap = {};
+const channelMap = {}; 
+// structuur:
+// {
+//   guildId: {
+//      nsCommands: "kanaalId",
+//      playerJoined: "kanaalId",
+//      nextUpdate: "kanaalId"
+//   },
+//   ...
+// }
 
-// Laad opgeslagen kanaalmap
 function loadMap() {
   if (fs.existsSync(mapFile)) {
     Object.assign(channelMap, JSON.parse(fs.readFileSync(mapFile)));
-    console.log(`✅ Loaded channel map met ${Object.keys(channelMap).length} entries`);
+    console.log(`✅ Loaded channel map met ${Object.keys(channelMap).length} guilds`);
   }
 }
 
-// Sla map op
 function saveMap() {
   fs.writeFileSync(mapFile, JSON.stringify(channelMap, null, 2));
   console.log('💾 Channel map opgeslagen');
@@ -28,19 +35,48 @@ function saveMap() {
 
 loadMap();
 
-// Slash command registratie
-const commands = [{
-  name: 'ns-commands',
-  description: 'Stel het kanaal in waar Roblox berichten naartoe moeten',
-  options: [
-    {
-      name: 'kanaal',
-      type: 7, // CHANNEL
-      description: 'Kies een tekstkanaal',
-      required: true
-    }
-  ]
-}];
+const commands = [
+  {
+    name: 'ns-commands',
+    description: 'Stel het kanaal in voor Roblox NS meldingen',
+    options: [
+      {
+        name: 'kanaal',
+        type: 7,
+        description: 'Kies een tekstkanaal',
+        required: true
+      }
+    ]
+  },
+  {
+    name: 'playerjoined',
+    description: 'Stel het kanaal in voor Roblox speler join meldingen',
+    options: [
+      {
+        name: 'kanaal',
+        type: 7,
+        description: 'Kies een tekstkanaal',
+        required: true
+      }
+    ]
+  },
+  {
+    name: 'nextupdate',
+    description: 'Stel het kanaal in voor Roblox volgende update meldingen',
+    options: [
+      {
+        name: 'kanaal',
+        type: 7,
+        description: 'Kies een tekstkanaal',
+        required: true
+      }
+    ]
+  },
+  {
+    name: 'ping',
+    description: 'Test of de bot online is'
+  }
+];
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
@@ -63,24 +99,40 @@ client.once('ready', () => {
 
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
-  if (interaction.commandName !== 'ns-commands') return;
-
-  const kanaal = interaction.options.getChannel('kanaal');
-  if (!kanaal.isTextBased()) {
-    return interaction.reply({ content: '❌ Kies een tekstkanaal!', ephemeral: true });
-  }
 
   const guildId = interaction.guildId;
-  channelMap[guildId] = kanaal.id;
-  saveMap();
+  const command = interaction.commandName;
 
-  await interaction.reply({
-    content: `✅ Roblox meldingen gaan naar <#${kanaal.id}>.\n\n📡 Roblox stuurt nu naar *alle* servers die een kanaal hebben ingesteld via POST naar:\n\`https://${process.env.RENDER_URL}/roblox\``,
-    ephemeral: true
-  });
+  if (command === 'ping') {
+    return interaction.reply({ content: 'Pong!', flags: 64 });
+  }
+
+  if (command === 'ns-commands' || command === 'playerjoined' || command === 'nextupdate') {
+    const kanaal = interaction.options.getChannel('kanaal');
+    if (!kanaal.isTextBased()) {
+      return interaction.reply({ content: '❌ Kies een tekstkanaal!', flags: 64 });
+    }
+
+    if (!channelMap[guildId]) channelMap[guildId] = {};
+
+    if (command === 'ns-commands') {
+      channelMap[guildId].nsCommands = kanaal.id;
+    } else if (command === 'playerjoined') {
+      channelMap[guildId].playerJoined = kanaal.id;
+    } else if (command === 'nextupdate') {
+      channelMap[guildId].nextUpdate = kanaal.id;
+    }
+
+    saveMap();
+
+    await interaction.reply({
+      content: `✅ Kanaal <#${kanaal.id}> is ingesteld voor \`${command}\`.`,
+      flags: 64
+    });
+  }
 });
 
-// HTTP server: ontvang Roblox berichten en stuur naar alle kanalen
+// HTTP-server voor Roblox berichten
 const server = http.createServer((req, res) => {
   if (req.method === 'POST' && req.url === '/roblox') {
     let body = '';
@@ -89,18 +141,27 @@ const server = http.createServer((req, res) => {
     req.on('end', async () => {
       try {
         const data = JSON.parse(body);
-        const message = data.message;
-        if (!message) {
+
+        // Verwacht object { type: "nsCommands"|"playerJoined"|"nextUpdate", message: "tekst" }
+        const { type, message } = data;
+        if (!type || !message) {
           res.writeHead(400);
-          return res.end('Geen message in JSON gevonden');
+          return res.end('JSON moet type en message bevatten');
         }
 
-        // Stuur bericht naar alle ingestelde kanalen
-        for (const [guildId, kanaalId] of Object.entries(channelMap)) {
+        for (const [guildId, chans] of Object.entries(channelMap)) {
+          const kanaalId = chans[type];
+          if (!kanaalId) continue;
+
           try {
             const kanaal = await client.channels.fetch(kanaalId);
             if (kanaal) {
-              kanaal.send(`📨 Roblox zegt:\n${message}`);
+              let prefix = '';
+              if (type === 'nsCommands') prefix = '📨 Roblox NS zegt:\n';
+              else if (type === 'playerJoined') prefix = '👥 Speler joined melding:\n';
+              else if (type === 'nextUpdate') prefix = '🚀 Volgende update:\n';
+
+              await kanaal.send(prefix + message);
             }
           } catch (err) {
             console.warn(`Kon kanaal ${kanaalId} in guild ${guildId} niet bereiken: ${err.message}`);
@@ -108,7 +169,7 @@ const server = http.createServer((req, res) => {
         }
 
         res.writeHead(200);
-        res.end('Bericht verzonden naar alle servers');
+        res.end('Bericht verzonden');
       } catch (err) {
         res.writeHead(400);
         res.end('Fout bij verwerken JSON');
