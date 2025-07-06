@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 const mapFile = './channelMap.json';
 const channelMap = {};
 
-// Laad opgeslagen map (indien aanwezig)
+// Laad opgeslagen kanaalmap
 function loadMap() {
   if (fs.existsSync(mapFile)) {
     Object.assign(channelMap, JSON.parse(fs.readFileSync(mapFile)));
@@ -35,7 +35,7 @@ const commands = [{
   options: [
     {
       name: 'kanaal',
-      type: 7, // CHANNEL type
+      type: 7, // CHANNEL
       description: 'Kies een tekstkanaal',
       required: true
     }
@@ -44,7 +44,6 @@ const commands = [{
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
-// Registreer command globaal (kan ook per guild, maar globaal is makkelijker hier)
 (async () => {
   try {
     console.log('⚙️ Registreren slash commands...');
@@ -59,7 +58,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 })();
 
 client.once('ready', () => {
-  console.log(`🤖 Bot is online als ${client.user.tag}`);
+  console.log(`🤖 Bot online als ${client.user.tag}`);
 });
 
 client.on('interactionCreate', async interaction => {
@@ -76,15 +75,14 @@ client.on('interactionCreate', async interaction => {
   saveMap();
 
   await interaction.reply({
-    content: `✅ Roblox meldingen gaan naar <#${kanaal.id}>.\n📡 Gebruik deze URL in Roblox:\n\`https://${process.env.RENDER_URL}/roblox/${guildId}\``,
+    content: `✅ Roblox meldingen gaan naar <#${kanaal.id}>.\n\n📡 Roblox stuurt nu naar *alle* servers die een kanaal hebben ingesteld via POST naar:\n\`https://${process.env.RENDER_URL}/roblox\``,
     ephemeral: true
   });
 });
 
-// HTTP-server voor Roblox berichten
+// HTTP server: ontvang Roblox berichten en stuur naar alle kanalen
 const server = http.createServer((req, res) => {
-  if (req.method === 'POST' && req.url.startsWith('/roblox/')) {
-    const guildId = req.url.split('/')[2];
+  if (req.method === 'POST' && req.url === '/roblox') {
     let body = '';
 
     req.on('data', chunk => { body += chunk; });
@@ -92,23 +90,25 @@ const server = http.createServer((req, res) => {
       try {
         const data = JSON.parse(body);
         const message = data.message;
-        const kanaalId = channelMap[guildId];
-
-        if (!kanaalId) {
-          res.writeHead(404);
-          return res.end('Kanaal niet ingesteld voor deze server');
+        if (!message) {
+          res.writeHead(400);
+          return res.end('Geen message in JSON gevonden');
         }
 
-        const kanaal = await client.channels.fetch(kanaalId);
-        if (!kanaal) {
-          res.writeHead(404);
-          return res.end('Kanaal niet gevonden in Discord');
+        // Stuur bericht naar alle ingestelde kanalen
+        for (const [guildId, kanaalId] of Object.entries(channelMap)) {
+          try {
+            const kanaal = await client.channels.fetch(kanaalId);
+            if (kanaal) {
+              kanaal.send(`📨 Roblox zegt:\n${message}`);
+            }
+          } catch (err) {
+            console.warn(`Kon kanaal ${kanaalId} in guild ${guildId} niet bereiken: ${err.message}`);
+          }
         }
-
-        await kanaal.send(`📨 Roblox zegt:\n${message}`);
 
         res.writeHead(200);
-        res.end('Bericht verzonden naar Discord');
+        res.end('Bericht verzonden naar alle servers');
       } catch (err) {
         res.writeHead(400);
         res.end('Fout bij verwerken JSON');
