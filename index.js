@@ -10,7 +10,8 @@ const client = new Client({
 
 const PORT = process.env.PORT || 3000;
 const mapFile = './channelMap.json';
-const channelMap = {}; 
+
+const channelMap = {};
 // structuur:
 // {
 //   guildId: {
@@ -107,7 +108,15 @@ client.on('interactionCreate', async interaction => {
     return interaction.reply({ content: 'Pong!', flags: 64 });
   }
 
+  // Alleen server owner mag onderstaande commands gebruiken
   if (command === 'ns-commands' || command === 'playerjoined' || command === 'nextupdate') {
+    if (!interaction.guild) return interaction.reply({ content: 'Deze command kan alleen in een server gebruikt worden.', flags: 64 });
+
+    // Check of de gebruiker de owner is
+    if (interaction.user.id !== interaction.guild.ownerId) {
+      return interaction.reply({ content: '❌ Alleen de eigenaar van de server mag dit commando uitvoeren.', flags: 64 });
+    }
+
     const kanaal = interaction.options.getChannel('kanaal');
     if (!kanaal.isTextBased()) {
       return interaction.reply({ content: '❌ Kies een tekstkanaal!', flags: 64 });
