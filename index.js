@@ -15,7 +15,7 @@ const channelMap = {};
 // structuur:
 // {
 //   guildId: {
-//      nsCommands: "kanaalId",
+//      weather: "kanaalId",
 //      playerJoined: "kanaalId",
 //      nextUpdate: "kanaalId"
 //   },
@@ -38,8 +38,8 @@ loadMap();
 
 const commands = [
   {
-    name: 'ns-commands',
-    description: 'Stel het kanaal in voor Roblox NS meldingen',
+    name: 'weather',
+    description: 'Stel het kanaal in voor weather meldingen',
     options: [
       {
         name: 'kanaal',
@@ -109,7 +109,7 @@ client.on('interactionCreate', async interaction => {
   }
 
   // Alleen server owner mag onderstaande commands gebruiken
-  if (command === 'ns-commands' || command === 'playerjoined' || command === 'nextupdate') {
+  if (command === 'weather' || command === 'playerjoined' || command === 'nextupdate') {
     if (!interaction.guild) return interaction.reply({ content: 'Deze command kan alleen in een server gebruikt worden.', flags: 64 });
 
     // Check of de gebruiker de owner is
@@ -124,8 +124,8 @@ client.on('interactionCreate', async interaction => {
 
     if (!channelMap[guildId]) channelMap[guildId] = {};
 
-    if (command === 'ns-commands') {
-      channelMap[guildId].nsCommands = kanaal.id;
+    if (command === 'weather') {
+      channelMap[guildId].weather = kanaal.id;
     } else if (command === 'playerjoined') {
       channelMap[guildId].playerJoined = kanaal.id;
     } else if (command === 'nextupdate') {
@@ -166,8 +166,8 @@ const server = http.createServer((req, res) => {
             const kanaal = await client.channels.fetch(kanaalId);
             if (kanaal) {
               let prefix = '';
-              if (type === 'nsCommands') prefix = '📨 Roblox NS zegt:\n';
-              else if (type === 'playerJoined') prefix = '👥 Speler joined melding:\n';
+              //if (type === 'weather') prefix = '📨 Roblox NS zegt:\n';
+              if (type === 'playerJoined') prefix = '👥 Speler joined melding:\n';
               else if (type === 'nextUpdate') prefix = '🚀 Volgende update:\n';
 
               await kanaal.send(prefix + message);
