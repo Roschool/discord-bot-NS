@@ -29,13 +29,49 @@ function saveMap() {
 }
 loadMap();
 
-// Slash commands
 const commands = [
-  { name: 'weather', description: 'Stel kanaal in voor weather meldingen', options: [{ name: 'kanaal', type: 7, description: 'Tekstkanaal', required: true }] },
-  { name: 'playerjoined', description: 'Kanaal voor Roblox speler join meldingen', options: [{ name: 'kanaal', type: 7, required: true }] },
-  { name: 'nextupdate', description: 'Kanaal voor Roblox volgende update', options: [{ name: 'kanaal', type: 7, required: true }] },
-  { name: 'ping', description: 'Test of de bot online is' }
+  {
+    name: 'weather',
+    description: 'Stel kanaal in voor weather meldingen',
+    options: [
+      {
+        name: 'kanaal',
+        type: 7,
+        description: 'Tekstkanaal waarin weerupdates worden gepost',
+        required: true
+      }
+    ]
+  },
+  {
+    name: 'playerjoined',
+    description: 'Kanaal voor Roblox speler join meldingen',
+    options: [
+      {
+        name: 'kanaal',
+        type: 7,
+        description: 'Tekstkanaal waarin spelerjoins worden gepost',
+        required: true
+      }
+    ]
+  },
+  {
+    name: 'nextupdate',
+    description: 'Kanaal voor Roblox volgende update',
+    options: [
+      {
+        name: 'kanaal',
+        type: 7,
+        description: 'Tekstkanaal waarin de volgende update wordt gepost',
+        required: true
+      }
+    ]
+  },
+  {
+    name: 'ping',
+    description: 'Test of de bot online is'
+  }
 ];
+
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 (async () => {
